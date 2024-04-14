@@ -2,16 +2,31 @@
   "name": "nanorpc-http-client",
   "version": "0.1.0",
   "description": "A HTTP based RPC library (client).",
-  "main": "./lib/index.js",
-  "types": "./lib/index.d.ts",
+  "main": "./lib/cjs/index.js",
+  "types": "./lib/cjs/index.d.ts",
+  "module": "./lib/esm/index.js",
   "files": [
     "lib/",
     "src/"
   ],
+  "exports": {
+    "import": {
+      "types": "./lib/esm/index.d.ts",
+      "default": "./lib/esm/index.js"
+    },
+    "require": {
+      "types": "./lib/cjs/index.d.ts",
+      "default": "./lib/cjs/index.js"
+    }
+  },
+  "browser": {
+    "./lib/cjs/hashes.js": "./lib/cjs/hashes.browser.js",
+    "./lib/esm/hashes.js": "./lib/esm/hashes.browser.js"
+  },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.esm.json && node ./postcompile.js",
     "watch": "tsc -w",
-    "test": "tsc && node ./lib/index.test.js"
+    "test": "tsc && node ./lib/cjs/index.test.js"
   },
   "repository": {
     "type": "git",
@@ -30,11 +45,17 @@
   },
   "homepage": "https://github.com/shixiongfei/nanorpc-http-client#readme",
   "devDependencies": {
+    "@types/crypto-js": "^4.2.2",
     "@types/node": "^20.12.2",
     "@typescript-eslint/eslint-plugin": "^7.5.0",
     "@typescript-eslint/parser": "^7.5.0",
     "eslint": "^8.57.0",
     "prettier": "^3.2.5",
     "typescript": "^5.4.3"
+  },
+  "dependencies": {
+    "crypto-js": "^4.2.0",
+    "nanorpc-validator": "^0.1.3",
+    "ramda": "^0.29.1"
   }
 }

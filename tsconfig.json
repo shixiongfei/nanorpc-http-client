@@ -3,7 +3,7 @@
     "module": "CommonJS",
     "target": "ES5",
     "baseUrl": "src",
-    "outDir": "lib",
+    "outDir": "lib/cjs",
     "declaration": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
