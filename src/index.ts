@@ -18,7 +18,7 @@ import {
 } from "nanorpc-validator";
 import { signature } from "./hashes.js";
 
-export enum NanoRPCCode {
+enum NanoRPCCode {
   OK = 0,
 }
 
