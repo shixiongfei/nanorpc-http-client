@@ -39,10 +39,7 @@ export class NanoRPCClient {
     this.api = new URL(url);
   }
 
-  async apply<T, M extends string, P extends Array<unknown>>(
-    method: M,
-    args: P,
-  ) {
+  async apply<T, P extends Array<unknown>>(method: string, args: P) {
     const rpc = createNanoRPC(method, args);
     const payload = R.join(
       "\n",
@@ -97,15 +94,12 @@ export class NanoRPCClient {
     return reply.value;
   }
 
-  async call<T, M extends string, P extends Array<unknown>>(
-    method: M,
-    ...args: P
-  ) {
-    return this.apply<T, M, P>(method, args);
+  async call<T, P extends Array<unknown>>(method: string, ...args: P) {
+    return this.apply<T, P>(method, args);
   }
 
-  invoke<T, M extends string, P extends Array<unknown>>(method: M) {
-    return async (...args: P) => await this.apply<T, M, P>(method, args);
+  invoke<T, P extends Array<unknown>>(method: string) {
+    return async (...args: P) => await this.apply<T, P>(method, args);
   }
 }
 
