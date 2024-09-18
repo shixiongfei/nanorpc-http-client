@@ -11,6 +11,7 @@
 
 import * as R from "ramda";
 import {
+  NanoRPCError,
   NanoReply,
   NanoValidator,
   createNanoRPC,
@@ -18,15 +19,11 @@ import {
 } from "nanorpc-validator";
 import { signature } from "./hashes.js";
 
-enum NanoRPCCode {
-  OK = 0,
-}
+export * from "nanorpc-validator";
 
-type NanoRPCHttpResp<T> = {
-  code: number;
-  data?: NanoReply<T>;
-  error?: { name: string; message: string };
-};
+export enum NanoRPCErrCode {
+  CallError = -1,
+}
 
 export class NanoRPCClient {
   public readonly validators: NanoValidator;
@@ -39,13 +36,14 @@ export class NanoRPCClient {
     this.api = new URL(url);
   }
 
-  async apply<T, P extends Array<unknown>>(method: string, args: P) {
-    const rpc = createNanoRPC(method, args);
+  async apply<T, P extends object>(method: string, params?: P) {
+    const rpc = createNanoRPC(method, params);
+    const req = { ...rpc, timestamp: Date.now() };
     const payload = R.join(
       "\n",
       R.sort(
         R.comparator((a, b) => a.localeCompare(b) < 0),
-        R.map(([key, value]) => `${key.toString()}=${value}`, R.toPairs(rpc)),
+        R.map((kv) => JSON.stringify(kv), R.toPairs(req)),
       ),
     );
     const sign = signature(this.secret, payload);
@@ -53,29 +51,25 @@ export class NanoRPCClient {
     const content = await fetch(new URL(`/nanorpcs/${method}`, this.api), {
       method: "POST",
       headers: { "Content-Type": "application/json; charset=utf-8" },
-      body: JSON.stringify({ ...rpc, sign }),
+      body: JSON.stringify({ ...req, sign }),
     });
 
-    const json: NanoRPCHttpResp<T> = await content.json();
+    const reply: NanoReply<T> = await content.json();
 
-    if (!R.has("code", json)) {
-      throw new Error(`NanoRPC call ${method} received reply missing code`);
+    if (!R.has("status", reply)) {
+      throw new NanoRPCError(
+        NanoRPCErrCode.CallError,
+        `Call ${method} received reply missing code`,
+      );
     }
 
-    if (json.code !== 200) {
-      if (R.has("error", json)) {
-        const error = `${json.code} ${json.error!.name}: ${json.error!.message}`;
-        throw new Error(`NanoRPC call ${method}, ${error}`);
-      }
-
-      throw new Error(`NanoRPC call ${method}, unknown error`);
+    if (reply.status !== 200) {
+      throw new NanoRPCError(
+        reply.error?.code ?? NanoRPCErrCode.CallError,
+        `Call ${method}, ${reply.error?.message ?? "unknown error"}`,
+      );
     }
 
-    if (!R.has("data", json)) {
-      throw new Error(`NanoRPC call ${method} received reply missing data`);
-    }
-
-    const reply = json.data!;
     const validator = this.validators.getValidator(method);
 
     if (validator && !validator(reply)) {
@@ -84,18 +78,17 @@ export class NanoRPCClient {
       );
       const error = lines.join("\n");
 
-      throw new Error(`NanoRPC call ${method}, ${error}`);
+      throw new NanoRPCError(
+        NanoRPCErrCode.CallError,
+        `Call ${method}, ${error}`,
+      );
     }
 
-    if (reply.code !== NanoRPCCode.OK) {
-      throw new Error(`NanoRPC call ${method} ${reply.message}`);
-    }
-
-    return reply.value;
+    return reply.result;
   }
 
   async call<T, P extends Array<unknown>>(method: string, ...args: P) {
-    return this.apply<T, P>(method, args);
+    return await this.apply<T, P>(method, args);
   }
 
   invoke<T, P extends Array<unknown>>(method: string) {
